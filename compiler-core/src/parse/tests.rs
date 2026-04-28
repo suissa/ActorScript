@@ -1445,6 +1445,40 @@ fn javascript_keyword_aliases() {
     assert_eq!(string_to_keyword("var"), Some(Token::Const));
 }
 
+#[test]
+fn typescript_style_function_return_annotation_is_accepted() {
+    let src = "
+pub function sum(a: Int, b: Int): Int {
+  a + b
+}
+";
+    let result =
+        crate::parse::parse_module(Utf8PathBuf::from("test/path"), src, &WarningEmitter::null());
+    assert!(
+        result.is_ok(),
+        "expected TS-style ':' return annotation to parse"
+    );
+}
+
+#[test]
+fn typescript_primitive_type_aliases_are_accepted() {
+    let src = "
+pub function show(flag: boolean, text: string): void {
+  const n: number = 1
+  text
+  flag
+  n
+  Nil
+}
+";
+    let result =
+        crate::parse::parse_module(Utf8PathBuf::from("test/path"), src, &WarningEmitter::null());
+    assert!(
+        result.is_ok(),
+        "expected TS primitive aliases (number/string/boolean/void) to parse"
+    );
+}
+
 // https://github.com/gleam-lang/gleam/issues/1756
 #[test]
 fn arithmetic_in_guards() {
