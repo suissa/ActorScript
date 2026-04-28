@@ -339,8 +339,8 @@ utf16_codepoint, utf32_codepoint, signed, unsigned, big, little, native, size, u
 
             ParseErrorType::NoLetBinding => ParseErrorDetails {
                 text: "See: https://tour.gleam.run/basics/assignments/".into(),
-                hint: Some("Use let for binding.".into()),
-                label_text: "There must be a 'let' to bind variable to value".into(),
+                hint: Some("Use const (or let) for binding.".into()),
+                label_text: "There must be a binding keyword (`const` or `let`)".into(),
                 extra_labels: vec![],
             },
 
@@ -732,7 +732,7 @@ See: https://tour.gleam.run/flow-control/case-expressions/"
 functions are not necessary.",
                 ),
                 hint: Some(
-                    "Either move this into the global scope or use `let` binding instead.".into(),
+                    "Either move this into the global scope or use a local `const` (or `let`) binding instead.".into(),
                 ),
                 label_text: "Constants are not allowed inside functions".into(),
                 extra_labels: vec![],

@@ -1104,7 +1104,7 @@ where
         Ok(message)
     }
 
-    // An assignment, with `Let` already consumed
+    // An assignment, with `let` or `const` already consumed
     fn parse_assignment(&mut self, start: u32) -> Result<UntypedStatement, ParseError> {
         let mut kind = match self.tok0 {
             Some((assert_keyword_start, Token::Assert, assert_end)) => {
@@ -1225,7 +1225,7 @@ where
                 Ok(Some(self.parse_use(start, end)?))
             }
 
-            Some((start, Token::Let, _)) => {
+            Some((start, Token::Let | Token::Const, _)) => {
                 self.advance();
                 Ok(Some(self.parse_assignment(start)?))
             }
@@ -1234,12 +1234,6 @@ where
                 self.advance();
                 Ok(Some(self.parse_assert(start)?))
             }
-
-            // Helpful error when trying to define a constant inside a function.
-            Some((start, Token::Const, end)) => parse_error(
-                ParseErrorType::ConstantInsideFunction,
-                SrcSpan { start, end },
-            ),
 
             token => {
                 self.tok0 = token;
