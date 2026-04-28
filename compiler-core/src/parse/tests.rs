@@ -1434,6 +1434,33 @@ fn newline_tokens() {
     );
 }
 
+#[test]
+fn javascript_keyword_aliases_are_tokenized() {
+    assert_eq!(
+        make_tokenizer("function export switch throw")
+            .map(|result| result.map(|(_, token, _)| token))
+            .collect_vec(),
+        [
+            Ok(Token::Fn),
+            Ok(Token::Pub),
+            Ok(Token::Case),
+            Ok(Token::Panic),
+        ]
+    );
+}
+
+#[test]
+fn const_assignment_inside_block() {
+    assert_parse!(
+        "
+fn run() {
+  const answer = 42
+  answer
+}
+"
+    );
+}
+
 // https://github.com/gleam-lang/gleam/issues/1756
 #[test]
 fn arithmetic_in_guards() {
