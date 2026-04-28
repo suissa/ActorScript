@@ -2,7 +2,7 @@ use crate::ast::SrcSpan;
 use crate::parse::error::{
     InvalidUnicodeEscapeError, LexicalError, LexicalErrorType, ParseError, ParseErrorType,
 };
-use crate::parse::lexer::make_tokenizer;
+use crate::parse::lexer::{make_tokenizer, string_to_keyword};
 use crate::parse::token::Token;
 use crate::warning::WarningEmitter;
 use camino::Utf8PathBuf;
@@ -1434,6 +1434,17 @@ fn newline_tokens() {
     );
 }
 
+#[test]
+fn javascript_keyword_aliases() {
+    assert_eq!(string_to_keyword("function"), Some(Token::Fn));
+    assert_eq!(string_to_keyword("export"), Some(Token::Pub));
+    assert_eq!(string_to_keyword("switch"), Some(Token::Case));
+    assert_eq!(string_to_keyword("throw"), Some(Token::Panic));
+    assert_eq!(string_to_keyword("public"), Some(Token::Pub));
+    assert_eq!(string_to_keyword("implements"), Some(Token::Implement));
+    assert_eq!(string_to_keyword("var"), Some(Token::Const));
+}
+
 // https://github.com/gleam-lang/gleam/issues/1756
 #[test]
 fn arithmetic_in_guards() {
@@ -1983,7 +1994,7 @@ fn case_guard_with_empty_block() {
 
 #[test]
 fn constant_inside_function() {
-    assert_module_error!(
+    assert_parse_module!(
         "
 pub fn main() {
   const x = 10

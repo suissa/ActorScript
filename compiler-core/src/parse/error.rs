@@ -83,7 +83,7 @@ pub enum ParseErrorType {
         error: LexicalError,
     },
     NestedBitArrayPattern,        // <<<<1>>, 2>>, <<1>> is not allowed in there
-    NoLetBinding, // Bindings and rebinds always require let and must always bind to a value.
+    NoLetBinding, // Bindings and rebinds always require const/let and must always bind to a value.
     NoValueAfterEqual, // = <something other than a value>
     NotConstType, // :fn(), name, _  are not valid const types
     OpNakedRight, // Operator with no value to the right
@@ -339,8 +339,8 @@ utf16_codepoint, utf32_codepoint, signed, unsigned, big, little, native, size, u
 
             ParseErrorType::NoLetBinding => ParseErrorDetails {
                 text: "See: https://tour.gleam.run/basics/assignments/".into(),
-                hint: Some("Use let for binding.".into()),
-                label_text: "There must be a 'let' to bind variable to value".into(),
+                hint: Some("Use const for binding.".into()),
+                label_text: "There must be a 'const' to bind variable to value".into(),
                 extra_labels: vec![],
             },
 
