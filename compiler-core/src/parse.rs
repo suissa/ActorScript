@@ -1104,7 +1104,7 @@ where
         Ok(message)
     }
 
-    // An assignment, with `Let` already consumed
+    // An assignment, with `let` or `const` already consumed
     fn parse_assignment(&mut self, start: u32) -> Result<UntypedStatement, ParseError> {
         let mut kind = match self.tok0 {
             Some((assert_keyword_start, Token::Assert, assert_end)) => {

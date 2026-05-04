@@ -1457,6 +1457,17 @@ pub function sum(a: Int, b: Int): Int {
     assert!(
         result.is_ok(),
         "expected TS-style ':' return annotation to parse"
+fn javascript_keyword_aliases_are_tokenized() {
+    assert_eq!(
+        make_tokenizer("function export switch throw")
+            .map(|result| result.map(|(_, token, _)| token))
+            .collect_vec(),
+        [
+            Ok(Token::Fn),
+            Ok(Token::Pub),
+            Ok(Token::Case),
+            Ok(Token::Panic),
+        ]
     );
 }
 
@@ -1476,6 +1487,14 @@ pub function show(flag: boolean, text: string): void {
     assert!(
         result.is_ok(),
         "expected TS primitive aliases (number/string/boolean/void) to parse"
+fn const_assignment_inside_block() {
+    assert_parse!(
+        "
+fn run() {
+  const answer = 42
+  answer
+}
+"
     );
 }
 
