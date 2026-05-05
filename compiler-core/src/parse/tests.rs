@@ -2,7 +2,7 @@ use crate::ast::SrcSpan;
 use crate::parse::error::{
     InvalidUnicodeEscapeError, LexicalError, LexicalErrorType, ParseError, ParseErrorType,
 };
-use crate::parse::lexer::make_tokenizer;
+use crate::parse::lexer::{make_tokenizer, string_to_keyword};
 use crate::parse::token::Token;
 use crate::warning::WarningEmitter;
 use camino::Utf8PathBuf;
@@ -1434,6 +1434,51 @@ fn newline_tokens() {
     );
 }
 
+#[test]
+fn javascript_keyword_aliases() {
+    assert_eq!(string_to_keyword("function"), Some(Token::Fn));
+    assert_eq!(string_to_keyword("export"), Some(Token::Pub));
+    assert_eq!(string_to_keyword("switch"), Some(Token::Case));
+    assert_eq!(string_to_keyword("throw"), Some(Token::Panic));
+    assert_eq!(string_to_keyword("public"), Some(Token::Pub));
+    assert_eq!(string_to_keyword("implements"), Some(Token::Implement));
+    assert_eq!(string_to_keyword("var"), Some(Token::Const));
+}
+
+#[test]
+fn typescript_style_function_return_annotation_is_accepted() {
+    let src = "
+pub function sum(a: Int, b: Int): Int {
+  a + b
+}
+";
+    let result =
+        crate::parse::parse_module(Utf8PathBuf::from("test/path"), src, &WarningEmitter::null());
+    assert!(
+        result.is_ok(),
+        "expected TS-style ':' return annotation to parse"
+    );
+}
+
+#[test]
+fn typescript_primitive_type_aliases_are_accepted() {
+    let src = "
+pub function show(flag: boolean, text: string): void {
+  const n: number = 1
+  text
+  flag
+  n
+  Nil
+}
+";
+    let result =
+        crate::parse::parse_module(Utf8PathBuf::from("test/path"), src, &WarningEmitter::null());
+    assert!(
+        result.is_ok(),
+        "expected TS primitive aliases (number/string/boolean/void) to parse"
+    );
+}
+
 // https://github.com/gleam-lang/gleam/issues/1756
 #[test]
 fn arithmetic_in_guards() {
@@ -1983,7 +2028,7 @@ fn case_guard_with_empty_block() {
 
 #[test]
 fn constant_inside_function() {
-    assert_module_error!(
+    assert_parse_module!(
         "
 pub fn main() {
   const x = 10

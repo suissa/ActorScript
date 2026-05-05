@@ -1225,7 +1225,7 @@ where
                 Ok(Some(self.parse_use(start, end)?))
             }
 
-            Some((start, Token::Let, _)) => {
+            Some((start, Token::Let | Token::Const, _)) => {
                 self.advance();
                 Ok(Some(self.parse_assignment(start)?))
             }
@@ -1234,12 +1234,6 @@ where
                 self.advance();
                 Ok(Some(self.parse_assert(start)?))
             }
-
-            // Helpful error when trying to define a constant inside a function.
-            Some((start, Token::Const, end)) => parse_error(
-                ParseErrorType::ConstantInsideFunction,
-                SrcSpan { start, end },
-            ),
 
             token => {
                 self.tok0 = token;
@@ -2177,22 +2171,16 @@ where
         let (_, rpar_e) =
             self.expect_one_following_series(&Token::RightParen, "a function parameter")?;
 
-        // Check for TypeScript-style return type annotation (:) instead of arrow (->)
-        if let Some((colon_start, colon_end)) = self.maybe_one(&Token::Colon) {
-            return Err(ParseError {
-                error: ParseErrorType::UnexpectedToken {
-                    token: Token::Colon,
-                    expected: vec!["`->`".into()],
-                    hint: Some("Return type annotations are written using `->`, not `:`".into()),
-                },
-                location: SrcSpan {
-                    start: colon_start,
-                    end: colon_end,
-                },
-            });
+        let return_annotation = if let Some((start, end)) = self.maybe_one(&Token::Colon) {
+            match self.parse_type() {
+                Ok(None) => {
+                    return parse_error(ParseErrorType::ExpectedType, SrcSpan { start, end });
+                }
+                other => other,
+            }
+        } else {
+            self.parse_type_annotation(&Token::RArrow)?
         };
-
-        let return_annotation = self.parse_type_annotation(&Token::RArrow)?;
 
         let (body_start, body, end, end_position) = match self.maybe_one(&Token::LeftBrace) {
             Some((left_brace_start, _)) => {
@@ -2829,6 +2817,25 @@ where
             // Constructor Module or type Variable
             Some((start, Token::Name { name: module }, end)) => {
                 self.advance();
+
+                // TypeScript primitive aliases
+                if !matches!(self.tok0, Some((_, Token::Dot, _))) {
+                    let primitive_alias = match module.as_str() {
+                        "number" => Some("Int"),
+                        "string" => Some("String"),
+                        "boolean" => Some("Bool"),
+                        "void" => Some("Nil"),
+                        _ => None,
+                    };
+
+                    if let Some(name) = primitive_alias {
+                        let name = TypeAstConstructorName::Unqualified {
+                            name: name.into(),
+                            location: SrcSpan::new(start, end),
+                        };
+                        return self.parse_type_name_finish(start, end, name);
+                    }
+                }
 
                 if let Some((_, dot_end)) = self.maybe_one(&Token::Dot) {
                     let module_location = SrcSpan::new(start, end);
