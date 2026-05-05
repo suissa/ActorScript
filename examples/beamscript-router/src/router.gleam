@@ -8,6 +8,9 @@ pub type Method {
   Put
   Patch
   Delete
+  Options
+  Head
+  Any
 }
 
 pub type Request {
@@ -56,6 +59,15 @@ pub type HttpContext {
     patch: fn(String, List(Middleware), Handler) -> HttpContext,
     delete: fn(String, List(Middleware), Handler) -> HttpContext,
   )
+  Wildcard(String)
+}
+
+pub type Route {
+  Route(method: Method, pattern: String, segments: List(Segment), handler: Handler)
+}
+
+pub type Router {
+  Router(routes: List(Route), middlewares: List(Middleware), not_found: Handler)
 }
 
 pub fn new() -> Router {
@@ -145,6 +157,64 @@ pub fn handle(router: Router, request: Request) -> Response {
         handler,
       )
     Error(Nil) -> run_middlewares(global_middlewares, request, not_found)
+pub fn with_not_found(router: Router, handler: Handler) -> Router {
+  let Router(routes, middlewares, _) = router
+  Router(routes, middlewares, handler)
+}
+
+pub fn use(router: Router, middleware: Middleware) -> Router {
+  let Router(routes, middlewares, not_found) = router
+  Router(routes, list.append(middlewares, [middleware]), not_found)
+}
+
+pub fn get(router: Router, pattern: String, handler: Handler) -> Router {
+  route(router, Get, pattern, handler)
+}
+
+pub fn post(router: Router, pattern: String, handler: Handler) -> Router {
+  route(router, Post, pattern, handler)
+}
+
+pub fn put(router: Router, pattern: String, handler: Handler) -> Router {
+  route(router, Put, pattern, handler)
+}
+
+pub fn patch(router: Router, pattern: String, handler: Handler) -> Router {
+  route(router, Patch, pattern, handler)
+}
+
+pub fn delete(router: Router, pattern: String, handler: Handler) -> Router {
+  route(router, Delete, pattern, handler)
+}
+
+pub fn options(router: Router, pattern: String, handler: Handler) -> Router {
+  route(router, Options, pattern, handler)
+}
+
+pub fn head(router: Router, pattern: String, handler: Handler) -> Router {
+  route(router, Head, pattern, handler)
+}
+
+pub fn all(router: Router, pattern: String, handler: Handler) -> Router {
+  route(router, Any, pattern, handler)
+}
+
+pub fn route(router: Router, method: Method, pattern: String, handler: Handler) -> Router {
+  let Router(routes, middlewares, not_found) = router
+  let segments = parse_pattern(pattern)
+  let entry = Route(method, pattern, segments, handler)
+  Router(list.append(routes, [entry]), middlewares, not_found)
+}
+
+pub fn handle(router: Router, request: Request) -> Response {
+  let Router(routes, middlewares, not_found) = router
+
+  case find_route(routes, request) {
+    Ok(tuple(handler, with_params)) ->
+      run_middlewares(middlewares, with_params, handler)
+
+    Error(Nil) ->
+      run_middlewares(middlewares, request, not_found)
   }
 }
 
@@ -167,6 +237,11 @@ fn default_not_found(_request: Request) -> Response {
 }
 
 fn run_middlewares(middlewares: List(Middleware), request: Request, endpoint: Handler) -> Response {
+fn run_middlewares(
+  middlewares: List(Middleware),
+  request: Request,
+  endpoint: Handler,
+) -> Response {
   case middlewares {
     [] -> endpoint(request)
     [first, ..rest] -> {
@@ -180,6 +255,7 @@ fn find_route(
   routes: List(Route),
   request: Request,
 ) -> Result(#(List(Middleware), Handler, Request), Nil) {
+fn find_route(routes: List(Route), request: Request) -> Result(#(Handler, Request), Nil) {
   case routes {
     [] -> Error(Nil)
     [route, ..rest] ->
@@ -195,6 +271,11 @@ fn match_route(route: Route, request: Request) -> Result(#(List(Middleware), Han
   let Request(request_method, path, headers, query, _, body) = request
 
   case list.any(methods, fn(m) { m == request_method }) {
+fn match_route(route: Route, request: Request) -> Result(#(Handler, Request), Nil) {
+  let Route(route_method, _, segments, handler) = route
+  let Request(request_method, path, headers, query, _, body) = request
+
+  case method_matches(route_method, request_method) {
     False -> Error(Nil)
     True ->
       case match_segments(segments, split_path(path), dict.new()) {
@@ -205,12 +286,29 @@ fn match_route(route: Route, request: Request) -> Result(#(List(Middleware), Han
   }
 }
 
+        Ok(params) -> Ok(#(handler, Request(request_method, path, headers, query, params, body)))
+      }
+  }
+}
+
+fn method_matches(route_method: Method, request_method: Method) -> Bool {
+  case route_method {
+    Any -> True
+    _ -> route_method == request_method
+  }
+}
+
 fn parse_pattern(pattern: String) -> List(Segment) {
   split_path(pattern)
   |> list.map(fn(part) {
     case string.starts_with(part, ":") {
       True -> Param(string.drop_left(part, 1))
       False -> Static(part)
+      False ->
+        case string.starts_with(part, "*") {
+          True -> Wildcard(string.drop_left(part, 1))
+          False -> Static(part)
+        }
     }
   })
 }
@@ -228,6 +326,7 @@ fn match_segments(
 ) -> Result(dict.Dict(String, String), Nil) {
   case pattern_segments, path_segments {
     [], [] -> Ok(params)
+    [Wildcard(name)], rest -> Ok(dict.insert(params, name, string.join(rest, "/")))
     [Static(expected), ..pattern_rest], [current, ..path_rest] ->
       case expected == current {
         True -> match_segments(pattern_rest, path_rest, params)

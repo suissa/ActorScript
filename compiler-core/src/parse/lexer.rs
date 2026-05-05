@@ -27,6 +27,7 @@ pub fn string_to_keyword(word: &str) -> Option<Token> {
         "assert" => Some(Token::Assert),
         "auto" => Some(Token::Auto),
         "case" => Some(Token::Case),
+        "switch" => Some(Token::Case),
         "const" => Some(Token::Const),
         "delegate" => Some(Token::Delegate),
         "derive" => Some(Token::Derive),
